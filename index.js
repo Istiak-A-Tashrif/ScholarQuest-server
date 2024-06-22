@@ -22,10 +22,7 @@ app.use(express.json());
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.iff9rhc.mongodb.net/ScholarQuest?retryWrites=true&w=majority`;
 
 // MongoDB client setup
-const client = new MongoClient(uri, {
-  useNewUrlParser: true,
-  useUnifiedTopology: true,
-});
+const client = new MongoClient(uri);
 
 async function run() {
   try {
@@ -34,7 +31,9 @@ async function run() {
 
     const database = client.db(); // Use the default database from the connection string
     const scholarshipsCollection = database.collection("scholarships");
+    const paymentCollection = database.collection("payment");
     const reviewsCollection = database.collection("reviews");
+    const applicationCollection = database.collection("application");
 
     // Routes
     app.get("/", async (req, res) => {
@@ -47,7 +46,8 @@ async function run() {
     });
 
     app.get("/reviews", async (req, res) => {
-      const result = await reviewsCollection.find().toArray();
+      const query = { email: req.query.email };
+      const result = await reviewsCollection.find(query).toArray();
       res.send(result);
     });
 
@@ -65,10 +65,48 @@ async function run() {
       }
     });
 
+    app.get("/paymentHistory", async (req, res) => {
+      try {
+        const email = req.query.email;
+        if (!email) {
+          return res
+            .status(400)
+            .send({ error: "Email query parameter is required" });
+        }
+
+        const query = { email: email };
+        const result = await paymentCollection.find(query).toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error("Error retrieving payment history:", error);
+        res.status(500).send({ error: "Internal Server Error" });
+      }
+    });
+
+    app.post("/savePayment", async (req, res) => {
+      try {
+        const payment = req.body;
+        if (!payment || typeof payment !== "object") {
+          return res.status(400).send({ error: "Invalid payment data" });
+        }
+        const result = await paymentCollection.insertOne(payment);
+        res.send(result);
+      } catch (error) {
+        console.error("Error saving payment:", error);
+        res
+          .status(500)
+          .send({ error: "An error occurred while saving the payment" });
+      }
+    });
+
     app.post("/create-payment-intent", async (req, res) => {
       try {
         const { price } = req.body;
-        const amount = parseInt(price * 100);
+        if (!price || isNaN(price)) {
+          return res.status(400).send({ error: "Invalid price" });
+        }
+        const amount = parseInt(price * 100); // Convert to cents
     
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amount,
@@ -84,14 +122,52 @@ async function run() {
         res.status(500).send("Failed to create payment intent");
       }
     });
-    
 
+    app.get("/checkPayment", async (req, res) => {
+      const query = {
+        email: req.query.email,
+        scholarshipId: req.query.id,
+      };
+
+      const result = await paymentCollection.findOne(query);
+      res.send(result);
+    });
+
+    app.post("/scholarApply", async (req, res) => {
+      const application = req.body;
+      const result = await applicationCollection.insertOne(application);
+      res.send(result);
+    });
+    app.get("/checkApply", async (req, res) => {
+      try {
+        const query = {
+          userEmail: req.query.email,
+          scholarshipId: req.query.scholarshipId,
+        };
+    
+        const result = await applicationCollection.findOne(query);
+    
+        if (result) {
+          res.send(result); // Send back the application data if found
+        } else {
+          res.status(404).send({ message: 'No application found for the given user and scholarship ID' });
+        }
+      } catch (error) {
+        console.error('Error fetching application:', error);
+        res.status(500).send({ message: 'Internal Server Error' });
+      }
+    });
+    
+    
     // Start server
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
     });
   } catch (error) {
     console.error("Error running the server:", error);
+  } finally {
+    // Ensure the client will close when you finish/error
+    // await client.close(); // Uncomment if you want to close the connection after the server stops
   }
 }
 
