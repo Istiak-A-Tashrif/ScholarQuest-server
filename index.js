@@ -107,13 +107,13 @@ async function run() {
           return res.status(400).send({ error: "Invalid price" });
         }
         const amount = parseInt(price * 100); // Convert to cents
-    
+
         const paymentIntent = await stripe.paymentIntents.create({
           amount: amount,
           currency: "usd",
           payment_method_types: ["card"],
         });
-    
+
         res.send({
           clientSecret: paymentIntent.client_secret,
         });
@@ -144,25 +144,28 @@ async function run() {
           userEmail: req.query.email,
           scholarshipId: req.query.scholarshipId,
         };
-    
+
         const result = await applicationCollection.findOne(query);
-    
+
         if (result) {
           res.send(result); // Send back the application data if found
         } else {
-          res.status(404).send({ message: 'No application found for the given user and scholarship ID' });
+          res.status(404).send({
+            message:
+              "No application found for the given user and scholarship ID",
+          });
         }
       } catch (error) {
-        console.error('Error fetching application:', error);
-        res.status(500).send({ message: 'Internal Server Error' });
+        console.error("Error fetching application:", error);
+        res.status(500).send({ message: "Internal Server Error" });
       }
     });
-    
+
     app.get("/myApplication", async (req, res) => {
-      const query = { userEmail: req.query.email }
+      const query = { userEmail: req.query.email };
       const result = await applicationCollection.find(query).toArray();
-      res.send(result)
-    })
+      res.send(result);
+    });
 
     app.post("/saveReview", async (req, res) => {
       try {
@@ -173,13 +176,103 @@ async function run() {
 
         const result = await reviewsCollection.insertOne(review);
         console.log("Review saved successfully:", result.insertedId);
-        res.status(201).send({ message: "Review saved successfully", reviewId: result.insertedId });
+        res.status(201).send({
+          message: "Review saved successfully",
+          reviewId: result.insertedId,
+        });
       } catch (error) {
         console.error("Error saving review:", error);
-        res.status(500).send({ error: "An error occurred while saving the review" });
+        res
+          .status(500)
+          .send({ error: "An error occurred while saving the review" });
       }
     });
-    
+
+    app.get("/reviews/:id", async (req, res) => {
+      try {
+        const query = { universityId: req.params.id };
+        const result = await reviewsCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error retrieving reviews:", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+    app.get("/myReviews", async (req, res) => {
+      try {
+        const query = {
+          reviewerEmail: req.query.email,
+        };
+        const result = await reviewsCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error retrieving reviews:", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+    app.get("/editApplication", async (req, res) => {
+      try {
+        const query = {
+          _id: new ObjectId(req.query.id),
+        };
+        const result = await applicationCollection.findOne(query);
+        res.send(result);
+      } catch (error) {
+        console.error("Error retrieving reviews:", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+
+    // Endpoint to update scholarship application
+    // Endpoint to update scholarship application
+    app.put("/updateScholarApply/:id", async (req, res) => {
+      const { id } = req.params;
+      const query = { _id: new ObjectId(id) };
+      const {
+        phoneNumber,
+        address,
+        gender,
+        degree,
+        sscResult,
+        hscResult,
+        studyGap,
+      } = req.body;
+      const updatedApplication = await applicationCollection.updateOne(query, {
+        $set: {
+          phoneNumber,
+          address,
+          gender,
+          degree,
+          sscResult,
+          hscResult,
+          studyGap,
+        },
+      });
+
+      if (!updatedApplication) {
+        return res.status(404).json({ message: "Application not found" });
+      }
+
+      res
+        .status(200)
+        .json({
+          message: "Application updated successfully",
+          application: updatedApplication,
+        });
+    });
+
+    app.delete("/deleteApplication/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: new ObjectId(id) };
+
+      try {
+        const result = await applicationCollection.deleteOne(query);
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error: "An error occurred while deleting" });
+      }
+    });
+
     // Start server
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
