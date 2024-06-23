@@ -34,6 +34,7 @@ async function run() {
     const paymentCollection = database.collection("payment");
     const reviewsCollection = database.collection("reviews");
     const applicationCollection = database.collection("application");
+    const usersCollection = database.collection("users");
 
     // Routes
     app.get("/", async (req, res) => {
@@ -41,6 +42,12 @@ async function run() {
         .find()
         .sort({ applicationFees: 1, postDate: -1 })
         .limit(6)
+        .toArray();
+      res.send(result);
+    });
+    app.get("/allScholarship", async (req, res) => {
+      const result = await scholarshipsCollection
+        .find()
         .toArray();
       res.send(result);
     });
@@ -250,12 +257,12 @@ async function run() {
       });
 
       if (!updatedApplication) {
-        return res.status(404).json({ message: "Application not found" });
+        return res.status(404).send({ message: "Application not found" });
       }
 
       res
         .status(200)
-        .json({
+        .send({
           message: "Application updated successfully",
           application: updatedApplication,
         });
@@ -272,6 +279,100 @@ async function run() {
         res.status(500).send({ error: "An error occurred while deleting" });
       }
     });
+
+    app.put('/updateReview/:id', async (req, res) => {
+      const { id } = req.params;
+      const query = { _id: new ObjectId(id) };
+      const {
+        ratingPoint,
+        comments,
+        reviewDate,
+        scholarshipName,
+        universityName,
+        universityId,
+        reviewerName,
+        reviewerImage,
+        reviewerEmail,
+      } = req.body;
+    
+      try {
+        const updatedReview = await reviewsCollection.updateOne(query, {
+          $set: {
+            ratingPoint,
+            comments,
+            reviewDate,
+            scholarshipName,
+            universityName,
+            universityId,
+            reviewerName,
+            reviewerImage,
+            reviewerEmail,
+          },
+        });
+    
+        if (updatedReview.matchedCount === 0) {
+          return res.status(404).json({ message: "Review not found" });
+        }
+    
+        res.status(200).json({
+          message: "Review updated successfully",
+          review: updatedReview,
+        });
+      } catch (error) {
+        console.error('Error updating review:', error);
+        res.status(500).json({ message: 'Failed to update review. Please try again later.' });
+      }
+    });
+
+    app.delete('/deleteReview/:id', async (req, res) => {
+      const { id } = req.params;
+      const query = { _id: new ObjectId(id) };
+    
+      try {
+        const deletedReview = await reviewsCollection.deleteOne(query);
+    
+        if (deletedReview.deletedCount === 0) {
+          return res.status(404).json({ message: 'Review not found' });
+        }
+    
+        res.status(200).json({ message: 'Review deleted successfully' });
+      } catch (error) {
+        console.error('Error deleting review:', error);
+        res.status(500).json({ message: 'Failed to delete review. Please try again later.' });
+      }
+    });
+
+app.post('/registerUser', async (req, res) => {
+  const { email, name, photo } = req.body;
+
+  try {
+    // Check if user with the same email already exists
+    const existingUser = await usersCollection.findOne({ email });
+
+    if (existingUser) {
+      return res.status(400).send('User with this email already exists');
+    }
+
+    const user = {
+      email,
+      name,
+      photo,
+      createdAt: new Date(),
+    };
+
+    const result = await usersCollection.insertOne(user);
+
+    if (!result.insertedId) {
+      return res.status(500).send('Failed to register user');
+    }
+
+    res.status(201).send('User registered successfully');
+  } catch (error) {
+    console.error('Error registering user:', error);
+    res.status(500).send('Failed to register user. Please try again later.');
+  }
+});
+
 
     // Start server
     app.listen(port, () => {
