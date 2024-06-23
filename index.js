@@ -373,6 +373,54 @@ app.post('/registerUser', async (req, res) => {
   }
 });
 
+app.post('/checkUserRole', async (req, res) => {
+  const { email } = req.body;
+  console.log(email);
+
+  try {
+
+    const user = await usersCollection.findOne({ email });
+    console.log(user);
+    if (!user) {
+      return res.status(404).json({ message: 'User not found' });
+    }
+
+    res.status(200).json({ role: user. userRole });
+  } catch (error) {
+    console.error('Error checking user role:', error);
+    res.status(500).json({ message: 'Failed to check user role. Please try again later.' });
+  }
+});
+
+app.get("/users", async(req, res)=>{
+  const result = await usersCollection.find().toArray()
+  res.send(result)
+})
+
+app.put('/updateScholarship/:id', async (req, res) => {
+  const { id } = req.params;
+  const scholarshipData = req.body;
+  const query = { _id: new ObjectId(id)}
+  console.log(scholarshipData);
+
+  try {
+    // Remove the _id field from the update data if present
+    if (scholarshipData._id) {
+      delete scholarshipData._id;
+    }
+
+    // Update scholarship in MongoDB
+    const result = await scholarshipsCollection.updateOne(
+      query,
+      { $set: scholarshipData }
+    );
+    res.send(result)
+  } catch (error) {
+    console.error('Error updating scholarship:', error);
+    res.status(500).send({ error: 'Failed to update scholarship' });
+  }
+});
+
 
     // Start server
     app.listen(port, () => {
