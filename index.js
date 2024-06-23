@@ -421,7 +421,28 @@ app.put('/updateScholarship/:id', async (req, res) => {
   }
 });
 
+app.delete('/deleteScholarship/:id', async (req, res) => {
+  const { id } = req.params;
+  const query = { _id: new ObjectId(id) };
 
+  try {
+    const result = await scholarshipsCollection.deleteOne(query);
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ message: "Scholarship not found" });
+    }
+
+    res.status(200).json({ message: "Scholarship deleted successfully" });
+  } catch (error) {
+    console.error('Error deleting scholarship:', error);
+    res.status(500).json({ error: 'Failed to delete scholarship' });
+  }
+});
+
+app.get("/allReviews", async(req, res)=>{
+  const result = await reviewsCollection.find().toArray()
+  res.send(result)
+})
     // Start server
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
