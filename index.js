@@ -158,6 +158,27 @@ async function run() {
       }
     });
     
+    app.get("/myApplication", async (req, res) => {
+      const query = { userEmail: req.query.email }
+      const result = await applicationCollection.find(query).toArray();
+      res.send(result)
+    })
+
+    app.post("/saveReview", async (req, res) => {
+      try {
+        const review = req.body;
+        if (!review || typeof review !== "object") {
+          return res.status(400).send({ error: "Invalid review data" });
+        }
+
+        const result = await reviewsCollection.insertOne(review);
+        console.log("Review saved successfully:", result.insertedId);
+        res.status(201).send({ message: "Review saved successfully", reviewId: result.insertedId });
+      } catch (error) {
+        console.error("Error saving review:", error);
+        res.status(500).send({ error: "An error occurred while saving the review" });
+      }
+    });
     
     // Start server
     app.listen(port, () => {
