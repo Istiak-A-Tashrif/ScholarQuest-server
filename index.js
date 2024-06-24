@@ -261,8 +261,7 @@ async function run() {
     });
 
     // Endpoint to update scholarship application
-    // Endpoint to update scholarship application
-    app.put("/updateScholarApply/:id", async (req, res) => {
+    app.put('/updateScholarApply/:id', async (req, res) => {
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
       const {
@@ -274,26 +273,44 @@ async function run() {
         hscResult,
         studyGap,
       } = req.body;
-      const updatedApplication = await applicationCollection.updateOne(query, {
-        $set: {
-          phoneNumber,
-          address,
-          gender,
-          degree,
-          sscResult,
-          hscResult,
-          studyGap,
-        },
-      });
-
-      if (!updatedApplication) {
-        return res.status(404).send({ message: "Application not found" });
+    
+      try {
+        // Check if application exists and its status is 'Pending'
+        const application = await applicationCollection.findOne(query);
+    
+        if (!application) {
+          return res.status(404).send({ message: 'Application not found' });
+        }
+    
+        if (application.status !== 'Pending') {
+          return res.status(400).send({ message: 'Application status is not Pending, cannot update' });
+        }
+    
+        // Update application details
+        const updatedApplication = await applicationCollection.updateOne(query, {
+          $set: {
+            phoneNumber,
+            address,
+            gender,
+            degree,
+            sscResult,
+            hscResult,
+            studyGap,
+          },
+        });
+    
+        if (updatedApplication.modifiedCount === 0) {
+          return res.status(404).send({ message: 'Application not found or no changes applied' });
+        }
+    
+        res.status(200).send({
+          message: 'Application updated successfully',
+          application: updatedApplication,
+        });
+      } catch (error) {
+        console.error('Error updating application:', error);
+        res.status(500).send({ error: 'Failed to update application' });
       }
-
-      res.status(200).send({
-        message: "Application updated successfully",
-        application: updatedApplication,
-      });
     });
 
     app.delete("/deleteApplication/:id", async (req, res) => {
@@ -502,9 +519,24 @@ async function run() {
     });
 
     app.get("/allApplications", async (req, res) => {
-      const result = await applicationCollection.find().toArray();
-      res.send(result);
+      const { status } = req.query;
+    
+      try {
+        let query = {};
+    
+        // If status is provided, filter based on status
+        if (status) {
+          query = { status: status };
+        }
+    
+        const result = await applicationCollection.find(query).toArray();
+        res.send(result);
+      } catch (error) {
+        console.error("Error fetching applications:", error);
+        res.status(500).json({ error: "Failed to fetch applications" });
+      }
     });
+    
 
     app.put("/cancelApplication/:id", async (req, res) => {
       const { id } = req.params;
@@ -519,6 +551,25 @@ async function run() {
       } catch (error) {
         console.error("Error canceling application:", error);
         res.status(500).send({ error: "Failed to cancel application." });
+      }
+    });
+
+    app.put('/approveApplication/:id', async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await applicationCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: "Approved" } }
+        );
+    
+        if (result.modifiedCount === 0) {
+          return res.status(404).send({ error: `Application with id ${id} not found.` });
+        }
+    
+        res.send({ message: `Application with id ${id} approved successfully` });
+      } catch (error) {
+        console.error('Error approving application:', error);
+        res.status(500).send({ error: 'Failed to approve application.' });
       }
     });
 
