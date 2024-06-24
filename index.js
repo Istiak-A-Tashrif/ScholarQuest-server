@@ -46,9 +46,7 @@ async function run() {
       res.send(result);
     });
     app.get("/allScholarship", async (req, res) => {
-      const result = await scholarshipsCollection
-        .find()
-        .toArray();
+      const result = await scholarshipsCollection.find().toArray();
       res.send(result);
     });
 
@@ -260,12 +258,10 @@ async function run() {
         return res.status(404).send({ message: "Application not found" });
       }
 
-      res
-        .status(200)
-        .send({
-          message: "Application updated successfully",
-          application: updatedApplication,
-        });
+      res.status(200).send({
+        message: "Application updated successfully",
+        application: updatedApplication,
+      });
     });
 
     app.delete("/deleteApplication/:id", async (req, res) => {
@@ -280,7 +276,7 @@ async function run() {
       }
     });
 
-    app.put('/updateReview/:id', async (req, res) => {
+    app.put("/updateReview/:id", async (req, res) => {
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
       const {
@@ -294,7 +290,7 @@ async function run() {
         reviewerImage,
         reviewerEmail,
       } = req.body;
-    
+
       try {
         const updatedReview = await reviewsCollection.updateOne(query, {
           $set: {
@@ -309,212 +305,245 @@ async function run() {
             reviewerEmail,
           },
         });
-    
+
         if (updatedReview.matchedCount === 0) {
           return res.status(404).json({ message: "Review not found" });
         }
-    
+
         res.status(200).json({
           message: "Review updated successfully",
           review: updatedReview,
         });
       } catch (error) {
-        console.error('Error updating review:', error);
-        res.status(500).json({ message: 'Failed to update review. Please try again later.' });
+        console.error("Error updating review:", error);
+        res
+          .status(500)
+          .json({
+            message: "Failed to update review. Please try again later.",
+          });
       }
     });
 
-    app.delete('/deleteReview/:id', async (req, res) => {
+    app.delete("/deleteReview/:id", async (req, res) => {
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
-    
+
       try {
         const deletedReview = await reviewsCollection.deleteOne(query);
-    
+
         if (deletedReview.deletedCount === 0) {
-          return res.status(404).json({ message: 'Review not found' });
+          return res.status(404).json({ message: "Review not found" });
         }
-    
-        res.status(200).json({ message: 'Review deleted successfully' });
+
+        res.status(200).json({ message: "Review deleted successfully" });
       } catch (error) {
-        console.error('Error deleting review:', error);
-        res.status(500).json({ message: 'Failed to delete review. Please try again later.' });
+        console.error("Error deleting review:", error);
+        res
+          .status(500)
+          .json({
+            message: "Failed to delete review. Please try again later.",
+          });
       }
     });
 
-app.post('/registerUser', async (req, res) => {
-  const { email, name, photo } = req.body;
+    app.post("/registerUser", async (req, res) => {
+      const { email, name, photo } = req.body;
 
-  try {
-    // Check if user with the same email already exists
-    const existingUser = await usersCollection.findOne({ email });
+      try {
+        // Check if user with the same email already exists
+        const existingUser = await usersCollection.findOne({ email });
 
-    if (existingUser) {
-      return res.status(400).send('User with this email already exists');
-    }
+        if (existingUser) {
+          return res.status(400).send("User with this email already exists");
+        }
 
-    const user = {
-      email,
-      name,
-      photo,
-      userRole: 'user',
-      createdAt: new Date(),
-    };
+        const user = {
+          email,
+          name,
+          photo,
+          userRole: "user",
+          createdAt: new Date(),
+        };
 
-    const result = await usersCollection.insertOne(user);
+        const result = await usersCollection.insertOne(user);
 
-    if (!result.insertedId) {
-      return res.status(500).send('Failed to register user');
-    }
+        if (!result.insertedId) {
+          return res.status(500).send("Failed to register user");
+        }
 
-    res.status(201).send('User registered successfully');
-  } catch (error) {
-    console.error('Error registering user:', error);
-    res.status(500).send('Failed to register user. Please try again later.');
-  }
-});
+        res.status(201).send("User registered successfully");
+      } catch (error) {
+        console.error("Error registering user:", error);
+        res
+          .status(500)
+          .send("Failed to register user. Please try again later.");
+      }
+    });
 
-app.post('/checkUserRole', async (req, res) => {
-  const { email } = req.body;
-  console.log(email);
+    app.post("/checkUserRole", async (req, res) => {
+      const { email } = req.body;
+      console.log(email);
 
-  try {
+      try {
+        const user = await usersCollection.findOne({ email });
+        console.log(user);
+        if (!user) {
+          return res.status(404).json({ message: "User not found" });
+        }
 
-    const user = await usersCollection.findOne({ email });
-    console.log(user);
-    if (!user) {
-      return res.status(404).json({ message: 'User not found' });
-    }
+        res.status(200).json({ role: user.userRole });
+      } catch (error) {
+        console.error("Error checking user role:", error);
+        res
+          .status(500)
+          .json({
+            message: "Failed to check user role. Please try again later.",
+          });
+      }
+    });
 
-    res.status(200).json({ role: user. userRole });
-  } catch (error) {
-    console.error('Error checking user role:', error);
-    res.status(500).json({ message: 'Failed to check user role. Please try again later.' });
-  }
-});
+    app.get("/users", async (req, res) => {
+      try {
+        // Initialize filter based on query parameters
+        const filter = {};
 
-app.get('/users', async (req, res) => {
+        // Check if filter by role is specified in query parameters
+        if (req.query.role) {
+          filter.userRole = req.query.role; // Assuming 'role' is the query parameter for filtering by user role
+        }
 
-  try {
-    // Initialize filter based on query parameters
-    const filter = {};
+        // Fetch users from MongoDB collection based on filter
+        const result = await usersCollection.find(filter).toArray();
 
-    // Check if filter by role is specified in query parameters
-    if (req.query.role) {
-      filter.userRole = req.query.role; // Assuming 'role' is the query parameter for filtering by user role
-    }
+        // Send response with filtered users
+        res.status(200).send(result);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+        res.status(500).send("Error fetching users");
+      }
+    });
 
-    // Fetch users from MongoDB collection based on filter
-    const result = await usersCollection.find(filter).toArray();
+    app.put("/updateScholarship/:id", async (req, res) => {
+      const { id } = req.params;
+      const scholarshipData = req.body;
+      const query = { _id: new ObjectId(id) };
+      console.log(scholarshipData);
 
-    // Send response with filtered users
-    res.status(200).send(result);
-  } catch (error) {
-    console.error('Error fetching users:', error);
-    res.status(500).send('Error fetching users');
-  }
-});
+      try {
+        // Remove the _id field from the update data if present
+        if (scholarshipData._id) {
+          delete scholarshipData._id;
+        }
 
-app.put('/updateScholarship/:id', async (req, res) => {
-  const { id } = req.params;
-  const scholarshipData = req.body;
-  const query = { _id: new ObjectId(id)}
-  console.log(scholarshipData);
+        // Update scholarship in MongoDB
+        const result = await scholarshipsCollection.updateOne(query, {
+          $set: scholarshipData,
+        });
+        res.send(result);
+      } catch (error) {
+        console.error("Error updating scholarship:", error);
+        res.status(500).send({ error: "Failed to update scholarship" });
+      }
+    });
 
-  try {
-    // Remove the _id field from the update data if present
-    if (scholarshipData._id) {
-      delete scholarshipData._id;
-    }
+    app.delete("/deleteScholarship/:id", async (req, res) => {
+      const { id } = req.params;
+      const query = { _id: new ObjectId(id) };
 
-    // Update scholarship in MongoDB
-    const result = await scholarshipsCollection.updateOne(
-      query,
-      { $set: scholarshipData }
-    );
-    res.send(result)
-  } catch (error) {
-    console.error('Error updating scholarship:', error);
-    res.status(500).send({ error: 'Failed to update scholarship' });
-  }
-});
+      try {
+        const result = await scholarshipsCollection.deleteOne(query);
 
-app.delete('/deleteScholarship/:id', async (req, res) => {
-  const { id } = req.params;
-  const query = { _id: new ObjectId(id) };
+        if (result.deletedCount === 0) {
+          return res.status(404).json({ message: "Scholarship not found" });
+        }
 
-  try {
-    const result = await scholarshipsCollection.deleteOne(query);
+        res.status(200).json({ message: "Scholarship deleted successfully" });
+      } catch (error) {
+        console.error("Error deleting scholarship:", error);
+        res.status(500).json({ error: "Failed to delete scholarship" });
+      }
+    });
 
-    if (result.deletedCount === 0) {
-      return res.status(404).json({ message: "Scholarship not found" });
-    }
+    app.get("/allReviews", async (req, res) => {
+      const result = await reviewsCollection.find().toArray();
+      res.send(result);
+    });
 
-    res.status(200).json({ message: "Scholarship deleted successfully" });
-  } catch (error) {
-    console.error('Error deleting scholarship:', error);
-    res.status(500).json({ error: 'Failed to delete scholarship' });
-  }
-});
+    app.get("/allApplications", async (req, res) => {
+      const result = await applicationCollection.find().toArray();
+      res.send(result);
+    });
 
-app.get("/allReviews", async(req, res)=>{
-  const result = await reviewsCollection.find().toArray()
-  res.send(result)
-})
+    app.put("/cancelApplication/:id", async (req, res) => {
+      const { id } = req.params;
+      try {
+        const result = await applicationCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { status: "Rejected" } }
+        );
+        res.send({
+          message: `Application with id ${id} canceled successfully`,
+        });
+      } catch (error) {
+        console.error("Error canceling application:", error);
+        res.status(500).send({ error: "Failed to cancel application." });
+      }
+    });
 
-app.get('/allApplications', async(req, res)=>{
-  const result = await applicationCollection.find().toArray();
-  res.send(result)
-})
+    app.put("/submitFeedback/:id", async (req, res) => {
+      const { id } = req.params;
+      const { feedback, status } = req.body;
+      try {
+        const result = await applicationCollection.updateOne(
+          { _id: new ObjectId(id) },
+          { $set: { feedback, status: status } },
+          { upsert: true }
+        );
+        res.send({
+          message: `Feedback submitted for application with id ${id}`,
+        });
+      } catch (error) {
+        console.error("Error submitting feedback:", error);
+        res.status(500).send({ error: "Failed to submit feedback." });
+      }
+    });
 
-app.put('/cancelApplication/:id', async (req, res) => {
-  const { id } = req.params;
-  try {
-    const result = await applicationCollection
-      .updateOne({ _id: new ObjectId(id) }, { $set: { status: 'Rejected' } });
-    res.send({ message: `Application with id ${id} canceled successfully` });
-  } catch (error) {
-    console.error('Error canceling application:', error);
-    res.status(500).send({ error: 'Failed to cancel application.' });
-  }
-});
+    app.put("/users/:userId/role", async (req, res) => {
+      const { userId } = req.params;
+      const { role } = req.body;
 
-app.put('/submitFeedback/:id', async (req, res) => {
-  const { id } = req.params;
-  const { feedback, status } = req.body;
-  try {
-    const result = await applicationCollection.updateOne(
-      { _id: new ObjectId(id) },
-      { $set: { feedback, status: status } },
-      { upsert: true }
-    );
-    res.send({ message: `Feedback submitted for application with id ${id}` });
-  } catch (error) {
-    console.error('Error submitting feedback:', error);
-    res.status(500).send({ error: 'Failed to submit feedback.' });
-  }
-});
+      try {
+        const result = await usersCollection.updateOne(
+          { _id: new ObjectId(userId) }, // Find user by _id (assuming using MongoDB ObjectId)
+          { $set: { userRole: role } } // Update userRole field
+        );
 
-app.put('/users/:userId/role', async (req, res) => {
-  const { userId } = req.params;
-  const { role } = req.body;
+        if (result.modifiedCount === 1) {
+          res.status(200).json({ message: "User role updated successfully" });
+        } else {
+          res
+            .status(404)
+            .json({ message: "User not found or role update failed" });
+        }
+      } catch (error) {
+        console.error("Error updating user role:", error);
+        res.status(500).json({ message: "Internal server error" });
+      }
+    });
 
-  try {
-    const result = await usersCollection.updateOne(
-      { _id: new ObjectId(userId) }, // Find user by _id (assuming using MongoDB ObjectId)
-      { $set: { userRole: role } } // Update userRole field
-    );
+    app.post("/addScholarship", async (req, res) => {
+      try {
+        const scholarshipData = req.body;
 
-    if (result.modifiedCount === 1) {
-      res.status(200).json({ message: 'User role updated successfully' });
-    } else {
-      res.status(404).json({ message: 'User not found or role update failed' });
-    }
-  } catch (error) {
-    console.error('Error updating user role:', error);
-    res.status(500).json({ message: 'Internal server error' });
-  }
-});
+        const result = await scholarshipsCollection.insertOne(scholarshipData);
+
+        res.status(201).send(result);
+      } catch (error) {
+        console.error("Error saving scholarship:", error);
+        res.status(500).send({ error: "Failed to save scholarship" });
+      }
+    });
+
     // Start server
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
