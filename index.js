@@ -3,6 +3,8 @@ require("dotenv").config();
 const stripe = require("stripe")(process.env.STRIPE_SK);
 const express = require("express");
 const cors = require("cors");
+const jwt = require("jsonwebtoken");
+const cookieParser = require("cookie-parser");
 
 const app = express();
 const port = process.env.PORT || 5000;
@@ -17,6 +19,7 @@ const corsOptions = {
 // Middleware
 app.use(cors(corsOptions));
 app.use(express.json());
+app.use(cookieParser());
 
 // MongoDB connection URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.iff9rhc.mongodb.net/ScholarQuest?retryWrites=true&w=majority`;
@@ -35,6 +38,36 @@ async function run() {
     const reviewsCollection = database.collection("reviews");
     const applicationCollection = database.collection("application");
     const usersCollection = database.collection("users");
+
+     // JWT Route
+     app.post("/jwt", (req, res) => {
+      const user = req.body;
+      const token = jwt.sign(user, process.env.ACCESS_TOKEN_SECRET, {
+        expiresIn: "1d",
+      });
+
+      res
+        .cookie("token", token, {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .status(200)
+        .send({ success: true, token });
+    });
+
+    // Logout Route
+    app.get("/logout", (req, res) => {
+      res
+        .clearCookie("token", {
+          httpOnly: true,
+          secure: process.env.NODE_ENV === "production",
+          sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
+        })
+        .status(200)
+        .send({ success: true });
+    });
+
 
     // Routes
     app.get("/", async (req, res) => {
