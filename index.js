@@ -46,9 +46,41 @@ async function run() {
       res.send(result);
     });
     app.get("/allScholarship", async (req, res) => {
-      const result = await scholarshipsCollection.find().toArray();
-      res.send(result);
+      const page = parseInt(req.query.page) - 1 || 0;
+      const size = parseInt(req.query.size) || 10;
+      const search = req.query.search || "";
+    
+      let query = {
+        universityName: { $regex: search, $options: "i" },
+      };
+    
+      try {
+        console.log(size, page, query);
+        const cursor = scholarshipsCollection.find(query)
+          .skip(page * size)
+          .limit(size);
+        const result = await cursor.toArray();
+        res.send(result);
+      } catch (error) {
+        res.status(500).send({ error: "An error occurred while fetching scholarships" });
+      }
     });
+    
+    app.get("/countScholarship", async (req, res) => {
+      const search = req.query.search || "";
+    
+      let query = {
+        universityName: { $regex: search, $options: "i" },
+      };
+    
+      try {
+        const count = await scholarshipsCollection.countDocuments(query);
+        res.send({ count });
+      } catch (error) {
+        res.status(500).send({ error: "An error occurred while counting scholarships" });
+      }
+    });
+    
 
     app.get("/reviews", async (req, res) => {
       const query = { email: req.query.email };
