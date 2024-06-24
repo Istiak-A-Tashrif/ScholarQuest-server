@@ -357,6 +357,7 @@ app.post('/registerUser', async (req, res) => {
       email,
       name,
       photo,
+      userRole: 'user',
       createdAt: new Date(),
     };
 
@@ -392,10 +393,27 @@ app.post('/checkUserRole', async (req, res) => {
   }
 });
 
-app.get("/users", async(req, res)=>{
-  const result = await usersCollection.find().toArray()
-  res.send(result)
-})
+app.get('/users', async (req, res) => {
+
+  try {
+    // Initialize filter based on query parameters
+    const filter = {};
+
+    // Check if filter by role is specified in query parameters
+    if (req.query.role) {
+      filter.userRole = req.query.role; // Assuming 'role' is the query parameter for filtering by user role
+    }
+
+    // Fetch users from MongoDB collection based on filter
+    const result = await usersCollection.find(filter).toArray();
+
+    // Send response with filtered users
+    res.status(200).send(result);
+  } catch (error) {
+    console.error('Error fetching users:', error);
+    res.status(500).send('Error fetching users');
+  }
+});
 
 app.put('/updateScholarship/:id', async (req, res) => {
   const { id } = req.params;
@@ -443,6 +461,60 @@ app.get("/allReviews", async(req, res)=>{
   const result = await reviewsCollection.find().toArray()
   res.send(result)
 })
+
+app.get('/allApplications', async(req, res)=>{
+  const result = await applicationCollection.find().toArray();
+  res.send(result)
+})
+
+app.put('/cancelApplication/:id', async (req, res) => {
+  const { id } = req.params;
+  try {
+    const result = await applicationCollection
+      .updateOne({ _id: new ObjectId(id) }, { $set: { status: 'Rejected' } });
+    res.send({ message: `Application with id ${id} canceled successfully` });
+  } catch (error) {
+    console.error('Error canceling application:', error);
+    res.status(500).send({ error: 'Failed to cancel application.' });
+  }
+});
+
+app.put('/submitFeedback/:id', async (req, res) => {
+  const { id } = req.params;
+  const { feedback, status } = req.body;
+  try {
+    const result = await applicationCollection.updateOne(
+      { _id: new ObjectId(id) },
+      { $set: { feedback, status: status } },
+      { upsert: true }
+    );
+    res.send({ message: `Feedback submitted for application with id ${id}` });
+  } catch (error) {
+    console.error('Error submitting feedback:', error);
+    res.status(500).send({ error: 'Failed to submit feedback.' });
+  }
+});
+
+app.put('/users/:userId/role', async (req, res) => {
+  const { userId } = req.params;
+  const { role } = req.body;
+
+  try {
+    const result = await usersCollection.updateOne(
+      { _id: new ObjectId(userId) }, // Find user by _id (assuming using MongoDB ObjectId)
+      { $set: { userRole: role } } // Update userRole field
+    );
+
+    if (result.modifiedCount === 1) {
+      res.status(200).json({ message: 'User role updated successfully' });
+    } else {
+      res.status(404).json({ message: 'User not found or role update failed' });
+    }
+  } catch (error) {
+    console.error('Error updating user role:', error);
+    res.status(500).json({ message: 'Internal server error' });
+  }
+});
     // Start server
     app.listen(port, () => {
       console.log(`Server running on port ${port}`);
