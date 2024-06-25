@@ -11,7 +11,7 @@ const port = process.env.PORT || 5000;
 
 // CORS options
 const corsOptions = {
-  origin: ["http://localhost:5173"],
+  origin: ["http://localhost:5173", "https://scholarquest.netlify.app"],
   credentials: true,
   optionsSuccessStatus: 200,
 };
@@ -20,6 +20,24 @@ const corsOptions = {
 app.use(cors(corsOptions));
 app.use(express.json());
 app.use(cookieParser());
+
+const verifyToken = (req, res, next) => {
+  const token = req.cookies?.token;
+
+  if (!token) {
+    return res.status(401).send({ message: "unauthorized access" });
+  }
+
+  jwt.verify(token, process.env.ACCESS_TOKEN_SECRET, (err, decoded) => {
+    if (err) {
+      console.error(err);
+      return res.status(401).send({ message: "unauthorized access" });
+    }
+
+    req.user = decoded;
+    next();
+  });
+};
 
 // MongoDB connection URI
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.iff9rhc.mongodb.net/ScholarQuest?retryWrites=true&w=majority`;
@@ -98,6 +116,23 @@ async function run() {
         res.status(500).send({ error: "An error occurred while fetching scholarships" });
       }
     });
+
+    app.get('/manageScholarships', verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
+      try {
+    
+        const scholarships = await scholarshipsCollection.find({}).toArray();
+    
+        res.send(scholarships);
+      } catch (error) {
+        console.error('Error fetching scholarships:', error);
+        res.status(500).send({ error: 'Failed to fetch scholarships' });
+      }
+    });
     
     app.get("/countScholarship", async (req, res) => {
       const search = req.query.search || "";
@@ -117,11 +152,16 @@ async function run() {
 
     app.get("/reviews", async (req, res) => {
       const query = { email: req.query.email };
-      const result = await reviewsCollection.find(query).toArray();
+      const result = await reviewsCollection.find(query).limit(6).toArray();
       res.send(result);
     });
 
-    app.get("/details/:id", async (req, res) => {
+    app.get("/details/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const query = { _id: new ObjectId(req.params.id) };
         const result = await scholarshipsCollection.findOne(query);
@@ -135,7 +175,12 @@ async function run() {
       }
     });
 
-    app.get("/paymentHistory", async (req, res) => {
+    app.get("/paymentHistory", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const email = req.query.email;
         if (!email) {
@@ -154,7 +199,12 @@ async function run() {
       }
     });
 
-    app.post("/savePayment", async (req, res) => {
+    app.post("/savePayment", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const payment = req.body;
         if (!payment || typeof payment !== "object") {
@@ -193,7 +243,12 @@ async function run() {
       }
     });
 
-    app.get("/checkPayment", async (req, res) => {
+    app.get("/checkPayment", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const query = {
         email: req.query.email,
         scholarshipId: req.query.id,
@@ -203,12 +258,22 @@ async function run() {
       res.send(result);
     });
 
-    app.post("/scholarApply", async (req, res) => {
+    app.post("/scholarApply", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const application = req.body;
       const result = await applicationCollection.insertOne(application);
       res.send(result);
     });
-    app.get("/checkApply", async (req, res) => {
+    app.get("/checkApply", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const query = {
           userEmail: req.query.email,
@@ -231,13 +296,23 @@ async function run() {
       }
     });
 
-    app.get("/myApplication", async (req, res) => {
+    app.get("/myApplication", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const query = { userEmail: req.query.email };
       const result = await applicationCollection.find(query).toArray();
       res.send(result);
     });
 
-    app.post("/saveReview", async (req, res) => {
+    app.post("/saveReview", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const review = req.body;
         if (!review || typeof review !== "object") {
@@ -258,7 +333,12 @@ async function run() {
       }
     });
 
-    app.get("/reviews/:id", async (req, res) => {
+    app.get("/reviews/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const query = { universityId: req.params.id };
         const result = await reviewsCollection.find(query).toArray();
@@ -268,7 +348,42 @@ async function run() {
         res.status(500).send("Internal Server Error");
       }
     });
-    app.get("/myReviews", async (req, res) => {
+
+    app.get("/reviews/:id/average-rating", async (req, res) => {
+      
+      try {
+        const scholarshipId = req.params.id;
+        const query = { universityId: req.params.id };
+    
+        // Retrieve the scholarship document
+        const reviews = await reviewsCollection.find(query).toArray();
+    
+        if (!reviews) {
+          return res.status(404).send({ message: "Scholarship not found" });
+        }
+    
+        // Calculate average rating
+        
+        let totalRating = 0;
+        reviews.forEach(review => {
+          totalRating += parseFloat(review.ratingPoint);
+        });
+    
+        const averageRating = totalRating / reviews.length;
+    
+        res.send({ averageRating });
+      } catch (error) {
+        console.error("Error retrieving reviews:", error);
+        res.status(500).send("Internal Server Error");
+      }
+    });
+
+    app.get("/myReviews", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const query = {
           reviewerEmail: req.query.email,
@@ -280,7 +395,12 @@ async function run() {
         res.status(500).send("Internal Server Error");
       }
     });
-    app.get("/editApplication", async (req, res) => {
+    app.get("/editApplication", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const query = {
           _id: new ObjectId(req.query.id),
@@ -294,7 +414,12 @@ async function run() {
     });
 
     // Endpoint to update scholarship application
-    app.put('/updateScholarApply/:id', async (req, res) => {
+    app.put('/updateScholarApply/:id', verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
       const {
@@ -346,7 +471,12 @@ async function run() {
       }
     });
 
-    app.delete("/deleteApplication/:id", async (req, res) => {
+    app.delete("/deleteApplication/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const id = req.params.id;
       const query = { _id: new ObjectId(id) };
 
@@ -358,7 +488,12 @@ async function run() {
       }
     });
 
-    app.put("/updateReview/:id", async (req, res) => {
+    app.put("/updateReview/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
       const {
@@ -372,6 +507,8 @@ async function run() {
         reviewerImage,
         reviewerEmail,
       } = req.body;
+      
+      console.log(universityName, scholarshipName, universityId);
 
       try {
         const updatedReview = await reviewsCollection.updateOne(query, {
@@ -406,7 +543,12 @@ async function run() {
       }
     });
 
-    app.delete("/deleteReview/:id", async (req, res) => {
+    app.delete("/deleteReview/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
 
@@ -462,7 +604,12 @@ async function run() {
       }
     });
 
-    app.post("/checkUserRole", async (req, res) => {
+    app.post("/checkUserRole", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { email } = req.body;
       console.log(email);
 
@@ -484,7 +631,12 @@ async function run() {
       }
     });
 
-    app.get("/users", async (req, res) => {
+    app.get("/users", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         // Initialize filter based on query parameters
         const filter = {};
@@ -505,7 +657,12 @@ async function run() {
       }
     });
 
-    app.put("/updateScholarship/:id", async (req, res) => {
+    app.put("/updateScholarship/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       const scholarshipData = req.body;
       const query = { _id: new ObjectId(id) };
@@ -528,7 +685,12 @@ async function run() {
       }
     });
 
-    app.delete("/deleteScholarship/:id", async (req, res) => {
+    app.delete("/deleteScholarship/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       const query = { _id: new ObjectId(id) };
 
@@ -546,12 +708,22 @@ async function run() {
       }
     });
 
-    app.get("/allReviews", async (req, res) => {
+    app.get("/allReviews", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const result = await reviewsCollection.find().toArray();
       res.send(result);
     });
 
-    app.get("/allApplications", async (req, res) => {
+    app.get("/allApplications", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { status } = req.query;
     
       try {
@@ -571,7 +743,12 @@ async function run() {
     });
     
 
-    app.put("/cancelApplication/:id", async (req, res) => {
+    app.put("/cancelApplication/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       try {
         const result = await applicationCollection.updateOne(
@@ -587,7 +764,12 @@ async function run() {
       }
     });
 
-    app.put('/approveApplication/:id', async (req, res) => {
+    app.put('/approveApplication/:id', verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       try {
         const result = await applicationCollection.updateOne(
@@ -606,7 +788,12 @@ async function run() {
       }
     });
 
-    app.put("/submitFeedback/:id", async (req, res) => {
+    app.put("/submitFeedback/:id", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { id } = req.params;
       const { feedback, status } = req.body;
       try {
@@ -624,7 +811,12 @@ async function run() {
       }
     });
 
-    app.put("/users/:userId/role", async (req, res) => {
+    app.put("/users/:userId/role", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       const { userId } = req.params;
       const { role } = req.body;
 
@@ -647,7 +839,12 @@ async function run() {
       }
     });
 
-    app.post("/addScholarship", async (req, res) => {
+    app.post("/addScholarship", verifyToken, async (req, res) => {
+      const tokenEmail = req.user?.email;
+      const userEmail = req.query?.email;
+      if (tokenEmail !== userEmail) {
+        return res.status(403).send({ message: "forbidden access" });
+      }
       try {
         const scholarshipData = req.body;
 
