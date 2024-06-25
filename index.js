@@ -47,9 +47,6 @@ const client = new MongoClient(uri);
 
 async function run() {
   try {
-    await client.connect(); // Connect to MongoDB
-    console.log("Connected to MongoDB!");
-
     const database = client.db(); // Use the default database from the connection string
     const scholarshipsCollection = database.collection("scholarships");
     const paymentCollection = database.collection("payment");
@@ -71,7 +68,7 @@ async function run() {
           sameSite: process.env.NODE_ENV === "production" ? "none" : "strict",
         })
         .status(200)
-        .send({ success: true, token });
+        .send({ success: true });
     });
 
     // Logout Route
@@ -106,7 +103,6 @@ async function run() {
       };
     
       try {
-        console.log(size, page, query);
         const cursor = scholarshipsCollection.find(query)
           .skip(page * size)
           .limit(size);
@@ -320,7 +316,6 @@ async function run() {
         }
 
         const result = await reviewsCollection.insertOne(review);
-        console.log("Review saved successfully:", result.insertedId);
         res.status(201).send({
           message: "Review saved successfully",
           reviewId: result.insertedId,
@@ -507,8 +502,6 @@ async function run() {
         reviewerImage,
         reviewerEmail,
       } = req.body;
-      
-      console.log(universityName, scholarshipName, universityId);
 
       try {
         const updatedReview = await reviewsCollection.updateOne(query, {
@@ -611,7 +604,6 @@ async function run() {
         return res.status(403).send({ message: "forbidden access" });
       }
       const { email } = req.body;
-      console.log(email);
 
       try {
         const user = await usersCollection.findOne({ email });
@@ -666,7 +658,6 @@ async function run() {
       const { id } = req.params;
       const scholarshipData = req.body;
       const query = { _id: new ObjectId(id) };
-      console.log(scholarshipData);
 
       try {
         // Remove the _id field from the update data if present
